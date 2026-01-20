@@ -22,7 +22,13 @@ public class Intake extends SubsystemBase {
         });
     }
 
-    public Command on() {
+    public Command reverse() {
+        return this.runOnce(() -> {
+            this.motor.set(ControlMode.PercentOutput, Constants.Intake.OUTTAKE_VOLTAGE / 12.0);
+        });
+    }
+
+    public Command intake() {
         return this.runOnce(() -> {
             this.motor.set(ControlMode.PercentOutput, Constants.Intake.INTAKE_VOLTAGE / 12.0);
         });
