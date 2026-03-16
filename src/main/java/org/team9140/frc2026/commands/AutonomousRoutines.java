@@ -1,0 +1,135 @@
+package org.team9140.frc2026.commands;
+
+import java.util.HashMap;
+import java.util.Map.Entry;
+import org.team9140.frc2026.subsystems.CommandSwerveDrivetrain;
+import org.team9140.lib.FollowPath;
+import org.team9140.lib.Util;
+
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.PrintCommand;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
+
+public class AutonomousRoutines {
+    private final CommandSwerveDrivetrain drivetrain;
+
+    private final SendableChooser<String> autoChooser = new SendableChooser<>();
+    private final HashMap<String, Command> namedCommands = new HashMap<>();
+
+    private static AutonomousRoutines instance;
+
+    public static AutonomousRoutines getInstance(CommandSwerveDrivetrain drivetrain) {
+        return (instance == null) ? instance = new AutonomousRoutines(drivetrain) : instance;
+    }
+
+    private AutonomousRoutines(CommandSwerveDrivetrain drivetrain) {
+        this.drivetrain = drivetrain;
+        autoChooser.setDefaultOption("Do Nothing", "nothing");
+        autoChooser.addOption("Shoot Preload", "preload");
+        autoChooser.addOption("Climb Left", "climb_left");
+        autoChooser.addOption("Climb Right", "climb_right");
+        autoChooser.addOption("Sweep Middle From Depot", "sweep_middle_left");
+        autoChooser.addOption("Sweep Middle From Outpost", "sweep_middle_right");
+        autoChooser.addOption("Score from Depot starting Middle", "score_from_depot");
+        SmartDashboard.putData(autoChooser);
+        // namedCommands.put("shoot", getShootCommand());
+        // namedCommands.put("intakeOn", intake.intake());
+        // namedCommands.put("intakeOff", intake.off());
+    }
+
+    // private Command getShootCommand() {
+    //     return shooter.aim(() -> this.drivetrain.getState())
+    //             .until(shooter.yawIsAtPosition.and(shooter.shooterIsAtVelocity)).andThen(hopper.feed());
+    // }
+
+    public Command getCommand() {
+        switch (autoChooser.getSelected()) {
+            // case "preload":
+            //     return shootPreload(3);
+            // case "climb_left":
+            //     return climb(true);
+            // case "climb_right":
+            //     return climb(false);
+            case "sweep_middle_left":
+                return sweepMiddleFromLeft();
+            case "sweep_middle_right":
+                return sweepMiddleFromRight();
+            case "score_from_depot":
+                return depotShot();
+            default:
+                return doNothing();
+        }
+    }
+
+    public Command doNothing() {
+        return new PrintCommand("Doing Nothing");
+    }
+
+    // public Command shootPreload(double seconds) {
+    //     return Commands.deadline(
+    //             new WaitCommand(seconds),
+    //             shooter.aim(
+    //                     () -> this.drivetrain.getState()),
+    //             hopper.feed());
+    // }
+
+    // public Command climb(boolean left) {
+    //     Pose2d goalPos;
+    //     if (left) {
+    //         if (Util.getAlliance().equals(Optional.of(DriverStation.Alliance.Blue))) {
+    //             goalPos = FieldConstants.Tower.LEFT_UPRIGHT;
+    //         } else {
+    //             goalPos = FieldConstants.Tower.RED_LEFT_UPRIGHT;
+    //         }
+    //     } else {
+    //         if (Util.getAlliance().equals(Optional.of(DriverStation.Alliance.Blue))) {
+    //             goalPos = FieldConstants.Tower.RIGHT_UPRIGHT;
+    //         } else {
+    //             goalPos = FieldConstants.Tower.RED_RIGHT_UPRIGHT;
+    //         }
+    //     }
+    //     return this.drivetrain.goToPose(() -> goalPos)
+    //             .until(this.drivetrain.reachedPose)
+    //             .andThen(climber.extend()).andThen(climber.retract());
+    // }
+
+    public void bindEventCommands(FollowPath path) {
+        for (Entry<String, Trigger> entry : path.getEvents().entrySet()) {
+            String name = entry.getKey();
+            Trigger currTrigger = entry.getValue();
+            Command currCommand = namedCommands.get(name);
+            if (currCommand != null) {
+                currTrigger.onTrue(Commands.runOnce(() -> {
+                    path.removeEvent(name);
+                    CommandScheduler.getInstance().schedule(currCommand);
+                }));
+            }
+        }
+    }
+
+    // this one is good
+    public Command sweepMiddleFromRight() {
+        FollowPath path = new FollowPath("crossandsweep_Blue_Right", () -> this.drivetrain.getState().Pose,
+                this.drivetrain::followSample, Util.getAlliance().get(), drivetrain);
+        drivetrain.resetPose(path.getInitialPose());
+        return path.gimmeCommand();
+    }
+
+    public Command sweepMiddleFromLeft() {
+        FollowPath path = new FollowPath("crossandsweep_Blue_Left", () -> this.drivetrain.getState().Pose,
+                this.drivetrain::followSample, Util.getAlliance().get(), drivetrain);
+        drivetrain.resetPose(path.getInitialPose());
+        return path.gimmeCommand();
+    }
+
+    public Command depotShot() {
+        FollowPath path = new FollowPath("depotShoot_Blue", () -> this.drivetrain.getState().Pose,
+                this.drivetrain::followSample, Util.getAlliance().get(), drivetrain);
+        drivetrain.resetPose(path.getInitialPose());
+        return path.gimmeCommand();
+    }
+}
